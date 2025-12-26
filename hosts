@@ -1,0 +1,6 @@
+#这是一个Ansible主机清单文件
+#定义了一个名为'local'的主机组,组里有一台主机
+[local]
+127.0.0.1 ansible_connection=local	#关键,告诉ansible本地连接,不走ssh
+
+
