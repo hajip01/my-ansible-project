@@ -1,0 +1,69 @@
+---
+- name: 部署Nginx Web服务器
+  hosts: ubuntu_servers  # 这里替换为你的主机组名
+  become: yes  # 使用sudo权限
+  
+  # 定义变量
+  vars:
+    nginx_port: 8080  # 改为8080端口
+    nginx_root: /var/www/myapp
+  
+  # 任务列表
+  tasks:
+    # 1. 更新apt缓存
+    - name: 更新软件包列表
+      apt:
+        update_cache: yes
+    
+    # 2. 安装Nginx
+    - name: 安装Nginx
+      apt:
+        name: nginx
+        state: present
+    
+    # 3. 创建网站目录
+    - name: 创建网站根目录
+      file:
+        path: "{{ nginx_root }}"
+        state: directory
+        mode: '0755'
+    
+    # 4. 复制简单的测试页面
+    - name: 部署测试页面
+      copy:
+        content: |
+          <!DOCTYPE html>
+          <html>
+          <head>
+            <title>Ansible部署测试</title>
+          </head>
+          <body>
+            <h1>🎉 成功！</h1>
+            <p>这是由Ansible自动部署的Nginx服务</p>
+            <p>端口: {{ nginx_port }}</p>
+            <p>时间: {{ ansible_date_time.date }}</p>
+          </body>
+          </html>
+        dest: "{{ nginx_root }}/index.html"
+        mode: '0644'
+    
+    # 5. 使用template生成Nginx配置
+    - name: 配置Nginx（使用模板）
+      template:
+        src: nginx.conf.j2  # 模板文件
+        dest: /etc/nginx/sites-available/default
+      notify: 重启Nginx
+    
+    # 6. 启用Nginx服务
+    - name: 启动Nginx服务
+      service:
+        name: nginx
+        state: started
+        enabled: yes
+  
+  # 处理程序（只有被notify时才执行）
+  handlers:
+    - name: 重启Nginx
+      service:
+        name: nginx
+        state: restarted

@@ -1,2 +1,53 @@
-[ubuntu_servers]
-192.168.31.144 ansible_user=huang ansible_become=yes
+# ===========================================
+# Ansible 主机清单 - 模拟多服务器环境
+# 注意：所有服务器其实都是 192.168.31.144
+# 但Ansible会认为是不同的服务器
+# ===========================================
+
+# 开发环境 - Web服务器组（模拟3台Web服务器）
+[dev_web]
+web01 ansible_host=192.168.31.144 ansible_user=huang ansible_port=22
+web02 ansible_host=192.168.31.144 ansible_user=huang ansible_port=22
+web03 ansible_host=192.168.31.144 ansible_user=huang ansible_port=22
+
+# 开发环境 - 数据库服务器组（模拟2台DB服务器）
+[dev_db]
+db01 ansible_host=192.168.31.144 ansible_user=huang ansible_port=22
+db02 ansible_host=192.168.31.144 ansible_user=huang ansible_port=22
+
+# 新服务器组（模拟3台待初始化服务器）
+[new_servers]
+server-new-01 ansible_host=192.168.31.144 ansible_user=huang ansible_port=22
+server-new-02 ansible_host=192.168.31.144 ansible_user=huang ansible_port=22
+server-new-03 ansible_host=192.168.31.144 ansible_user=huang ansible_port=22
+
+# ===========================================
+# 分组管理
+# ===========================================
+
+# 开发环境所有服务器
+[dev_all:children]
+dev_web
+dev_db
+
+# 所有服务器
+[all_servers:children]
+dev_web
+dev_db
+new_servers
+
+# ===========================================
+# 组变量配置
+# ===========================================
+
+[dev_web:vars]
+server_role=web
+nginx_port=80
+
+[dev_db:vars]
+server_role=database
+mysql_port=3306
+
+[new_servers:vars]
+server_status=new
+need_init=true

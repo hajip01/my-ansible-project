@@ -1,0 +1,106 @@
+---
+- name: 服务器批量初始化（学习版）
+  hosts: new_servers  # 对新服务器组执行
+  become: yes
+  
+  # 定义变量
+  vars:
+    # 运维账户设置
+    ops_user: "ops"
+    
+    # 要安装的基础工具
+    base_tools: ['curl', 'git', 'vim', 'htop', 'wget', 'net-tools', 'tree']
+    
+    # 服务器别名映射（为了让每台"模拟服务器"有不同的主机名）
+    server_names:
+      server-new-01: "web-dev-01"
+      server-new-02: "web-dev-02"
+      server-new-03: "db-dev-01"
+  
+  # 任务列表
+  tasks:
+    # 任务0：显示开始信息
+    - name: 显示初始化开始信息
+      debug:
+        msg: "🚀 开始初始化服务器：{{ inventory_hostname }} (实际IP: {{ ansible_default_ipv4.address }})"
+    
+    # 任务1：设置不同主机名（模拟多服务器的关键）
+    - name: 设置服务器主机名
+      hostname:
+        name: "{{ server_names[inventory_hostname] }}"
+      when: inventory_hostname in server_names
+    
+    # 任务2：更新系统
+    - name: 更新软件包列表
+      apt:
+        update_cache: yes
+      tags: update
+    
+    # 任务3：安装基础工具（使用循环）
+    - name: 安装基础工具
+      apt:
+        name: "{{ item }}"
+        state: present
+      loop: "{{ base_tools }}"
+      tags: install
+    
+    # 任务4：创建运维用户
+    - name: 创建运维用户
+      user:
+        name: "{{ ops_user }}"
+        shell: /bin/bash
+        groups: sudo
+        create_home: yes
+      tags: user
+    
+    # 任务5：配置运维用户SSH公钥
+    - name: 配置SSH公钥
+      authorized_key:
+        user: "{{ ops_user }}"
+        state: present
+        key: "{{ lookup('file', '~/.ssh/id_rsa.pub') }}"
+      tags: user
+    
+    # 任务6：配置时区
+    - name: 配置上海时区
+      timezone:
+        name: Asia/Shanghai
+      tags: config
+    
+    # 任务7：简单安全配置
+    - name: 配置SSH安全选项
+      lineinfile:
+        path: /etc/ssh/sshd_config
+        regexp: '^#?PermitRootLogin'
+        line: 'PermitRootLogin no'
+        state: present
+      notify: 重启SSH服务
+      tags: security
+    
+    # 任务8：显示完成信息
+    - name: 显示初始化完成信息
+      debug:
+        msg: |
+          ✅ 服务器 {{ inventory_hostname }} 初始化完成！
+          
+          实际主机名：{{ ansible_hostname }}
+          IP地址：{{ ansible_default_ipv4.address }}
+          操作系统：{{ ansible_distribution }} {{ ansible_distribution_version }}
+          
+          已配置：
+          - 主机名：{{ server_names[inventory_hostname] | default('未重命名') }}
+          - 运维用户：{{ ops_user }}
+          - 已安装 {{ base_tools | length }} 个工具
+          - 时区：Asia/Shanghai
+          
+          可以通过以下命令登录：
+          ssh {{ ops_user }}@{{ ansible_default_ipv4.address }}
+      tags: info
+  
+  # 处理程序
+  handlers:
+    - name: 重启SSH服务
+      service:
+        name: ssh
+        state: restarted
+      tags: security
